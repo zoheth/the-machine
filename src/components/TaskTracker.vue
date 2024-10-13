@@ -1,23 +1,48 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted  } from 'vue';
 import { useRouter } from 'vue-router';
-import { useTasks } from './useTasks';
+import { invoke } from '@tauri-apps/api/core';
 import TaskList from './TaskList.vue';
 
+interface Task {
+  id: number;
+  text: string;
+  completed: boolean;
+  ordered: boolean;
+  subtasks: Task[];
+}
 
-const { tasks } = useTasks();
+const tasks = ref<Task[]>([]);
 const newTask = ref('');
 const router = useRouter();
 
-const addTask = () => {
+const loadTasks = async () => {
+  try {
+    const result = await invoke<Task[]>('get_active_tasks'); // 调用后端的 get_active_tasks 命令
+    tasks.value = result; // 将结果绑定到 tasks 列表
+  } catch (error) {
+    console.error('Failed to load tasks:', error);
+  }
+};
+
+const addTask = async () => {
   if (newTask.value.trim() !== '') {
-    tasks.value.push({
-      text: newTask.value.trim(),
-      completed: false,
-      subtasks: [],
-      ordered: false,
-    });
-    newTask.value = '';
+    try {
+      const result = await invoke<number>('add_task', {
+        text: newTask.value.trim(),
+        ordered: false,
+      });
+      tasks.value.push({
+        id: result, // Rust 返回的任务 ID
+        text: newTask.value.trim(),
+        completed: false,
+        subtasks: [],
+        ordered: true,
+      });
+      newTask.value = '';
+    } catch (error) {
+      console.error('Failed to add task:', error);
+    }
   }
 };
 
@@ -28,9 +53,13 @@ const toggleTask = (index: number) => {
 const navigateToSubtasks = (index: number) => {
   router.push({
     name: 'Subtasks',
-    params: { taskPath: index.toString() },
+    params: { taskId: index },
   });
 };
+
+onMounted(() => {
+  loadTasks();
+});
 </script>
 
 <template>
@@ -38,7 +67,6 @@ const navigateToSubtasks = (index: number) => {
     <div class="task-list">
       <TaskList
         :tasks="tasks"
-        :taskPath="[]"
         :onToggleTask="toggleTask"
         :onNavigateToSubtasks="navigateToSubtasks"
       />

@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { defineProps, ref } from 'vue';
+import { ref } from 'vue';
 
 const props = defineProps<{
-  tasks: { text: string; completed: boolean }[];
-  taskPath: number[];
+  tasks: { id: number; text: string; completed: boolean }[];
   onToggleTask: (index: number) => void;
   onNavigateToSubtasks: (index: number) => void;
 }>();
@@ -94,7 +93,7 @@ function clearProgressInterval() {
         @mouseup="cancelLongPress"
         @mouseleave="cancelLongPress"
         @touchend="cancelLongPress"
-        @dblclick="handleDoubleClick(index)"
+        @dblclick="handleDoubleClick(task.id)"
       >
         <span>{{ task.text }}</span>
         <span v-if="task.completed" class="status">已完成</span>

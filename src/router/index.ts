@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
+import { RouteLocationNormalized } from 'vue-router';
 import TaskTracker from '../components/TaskTracker.vue'; // Main Task Page
 import Subtasks from '../components/Subtasks.vue'; // Subtasks Page
 
@@ -9,10 +10,10 @@ const routes = [
     component: TaskTracker,
   },
   {
-    path: '/tasks/:taskPath(.*)*',
+    path: '/tasks/:taskId',
     name: 'Subtasks',
     component: Subtasks,
-    props: true,
+    props: (route: RouteLocationNormalized) => ({ taskId: Number(route.params.taskId) }),
   },
 ];
 
