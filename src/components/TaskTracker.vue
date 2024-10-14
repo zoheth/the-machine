@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted  } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { invoke } from '@tauri-apps/api/core';
 import TaskList from './TaskList.vue';
@@ -46,8 +46,18 @@ const addTask = async () => {
   }
 };
 
-const toggleTask = (index: number) => {
-  tasks.value[index].completed = !tasks.value[index].completed;
+const toggleTask = async (index: number) => {
+  if (tasks.value[index]) {
+    if (tasks.value[index].completed) {
+      await invoke('uncomplete_task', { id: tasks.value[index].id });
+      tasks.value[index].completed = false;
+    }
+    else {
+      await invoke('complete_task', { id: tasks.value[index].id });
+      tasks.value[index].completed = true;
+    }
+  }
+  loadTasks();
 };
 
 const navigateToSubtasks = (index: number) => {
@@ -65,11 +75,7 @@ onMounted(() => {
 <template>
   <form class="task-container" @submit.prevent="addTask">
     <div class="task-list">
-      <TaskList
-        :tasks="tasks"
-        :onToggleTask="toggleTask"
-        :onNavigateToSubtasks="navigateToSubtasks"
-      />
+      <TaskList :tasks="tasks" :onToggleTask="toggleTask" :onNavigateToSubtasks="navigateToSubtasks" />
     </div>
     <div class="task-input">
       <input v-model="newTask" type="text" placeholder="添加新的任务..." />
@@ -97,5 +103,4 @@ onMounted(() => {
   list-style: none;
   padding: 0;
 }
-
 </style>

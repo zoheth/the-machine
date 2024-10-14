@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { invoke } from '@tauri-apps/api/core'; 
+import { invoke } from '@tauri-apps/api/core';
 import TaskList from './TaskList.vue';
 
 interface Task {
@@ -25,24 +25,23 @@ const newSubtask = ref('');
 const loadParentTasks = async () => {
   try {
     const result = await invoke<{ text: string; id: number }[]>('get_parent_tasks', { id: currentId });
-    console.log(result); 
+    console.log(result);
     hierarchy.value = result.reverse();
   } catch (error) {
     console.error('Failed to load parent tasks:', error);
   }
 };
 
-const loadSubtasks = async () => {
+const loadTask = async () => {
   try {
-    const result = await invoke<Task[]>('get_subtasks', { id: currentId });
+    const result = await invoke<Task>('get_task', { id: currentId });
+    console.log(result);
+    currentTask.value = result;
+
+    const subtasks = await invoke<Task[]>('get_subtasks', { id: currentId });
     console.log("Subtasks received from backend:", result);
-    currentTask.value = {
-      id: Number(currentId),
-      text: hierarchy.value[hierarchy.value.length - 1]?.text || '',
-      completed: false,
-      ordered: false,
-      subtasks: result,
-    };
+    currentTask.value.subtasks = subtasks;
+
   } catch (error) {
     console.error('Failed to load subtasks:', error);
   }
@@ -62,7 +61,7 @@ const addSubtask = async () => {
           text: newSubtask.value.trim(),
           completed: false,
           subtasks: [],
-          ordered: false,
+          ordered: true,
         },
       ];
       newSubtask.value = '';
@@ -72,14 +71,23 @@ const addSubtask = async () => {
   }
 };
 
-const toggleSubtask = (index: number) => {
+const toggleSubtask = async (index: number) => {
   if (currentTask.value) {
-    currentTask.value.subtasks[index].completed = !currentTask.value.subtasks[index].completed;
+    if (currentTask.value.subtasks[index].completed) {
+      await invoke('uncomplete_task', { id: currentTask.value.subtasks[index].id });
+      currentTask.value.subtasks[index].completed = false;
+    }
+    else {
+      await invoke('complete_task', { id: currentTask.value.subtasks[index].id });
+      currentTask.value.subtasks[index].completed = true;
+    }
+    loadTask();
   }
 };
 
-const toggleOrdered = () => {
+const toggleOrdered = async () => {
   if (currentTask.value) {
+    await invoke('toggle_ordered', { id: currentTask.value.id });
     currentTask.value.ordered = !currentTask.value.ordered;
   }
 };
@@ -88,7 +96,7 @@ const navigateToSubtasks = (index: number) => {
   console.log('Navigating to:', index)
   currentId = index;
   loadParentTasks();
-  loadSubtasks();
+  loadTask();
 };
 
 const returnToMain = () => {
@@ -97,13 +105,14 @@ const returnToMain = () => {
 
 onMounted(() => {
   loadParentTasks();
-  loadSubtasks();
+  loadTask();
 });
 
 </script>
 
 <template>
-  <div class="task-container">
+  <div class="page-header">
+    <img @click="returnToMain" class="back-button" src="../assets/menu-button.png" alt="返回主界面" />
     <div class="hierarchy">
       <span v-for="(item, index) in hierarchy" :key="item.id" class="hierarchy-item">
         <span @click="navigateToSubtasks(item.id)" class="clickable">
@@ -112,19 +121,19 @@ onMounted(() => {
         <span v-if="index < hierarchy.length - 1" class="hierarchy-separator"> &gt; </span>
       </span>
     </div>
-    <div class="controls">
-      <button @click="returnToMain">返回主界面</button>
-      <button v-if="currentTask" @click="toggleOrdered">
-        {{ currentTask.ordered ? '切换为无序' : '切换为有序' }}
-      </button>
-      <button v-else disabled>加载中...</button>
+  </div>
+
+  <div class="task-container">
+    <div class="task-header">
+      <h2>{{ currentTask ? currentTask.text : '任务详情' }}</h2>
+      <label class="toggle-switch">
+        <input type="checkbox" @change="toggleOrdered" :checked="currentTask?.ordered" />
+        <span class="slider"></span>
+      </label>
+      <span>{{ currentTask?.ordered ? '有序' : '无序' }}</span>
     </div>
-    <TaskList
-      v-if="currentTask"
-      :tasks="currentTask.subtasks"
-      :onToggleTask="toggleSubtask"
-      :onNavigateToSubtasks="navigateToSubtasks"
-    />
+    <TaskList v-if="currentTask" :tasks="currentTask.subtasks" :onToggleTask="toggleSubtask"
+      :onNavigateToSubtasks="navigateToSubtasks" />
     <div class="task-input">
       <input v-model="newSubtask" type="text" placeholder="添加新的子任务..." />
       <button @click="addSubtask">添加子任务</button>
@@ -133,51 +142,147 @@ onMounted(() => {
 </template>
 
 <style scoped>
-ul {
-  list-style-type: none;
-  padding: 0;
+.page-header {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background-color: #2b2b2b;
+  border-bottom: 1px solid #444;
+  z-index: 10;
+  box-sizing: border-box;
 }
 
-ul.ordered {
-  list-style-type: decimal;
-  padding-left: 20px;
+.back-button {
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  margin-right: 16px;
+  opacity: 0.6;
+  transition: opacity 0.3s;
+  filter: invert(0);
+}
+
+.back-button:hover {
+  opacity: 0.9;
 }
 
 .hierarchy {
   display: flex;
   align-items: center;
-  padding: 8px 16px;         /* 内边距 */
-  border-radius: 4px;        /* 圆角 */
+  color: #e1e1e1;
+  font-size: 14px;
 }
 
 .hierarchy-item {
   display: flex;
   align-items: center;
-}
-
-.hierarchy-separator {
-  color: #666666;             /* 分隔符颜色 */
-  margin: 0 8px;              /* 分隔符左右的间距 */
-  font-size: 14px;
-}
-
-.hierarchy-item {
-  color: #e1e1e1;            /* 字体颜色 */
-  font-size: 14px;
   cursor: pointer;
-  transition: color 0.3s ease; /* 颜色过渡效果 */
+  transition: color 0.3s ease;
 }
 
 .hierarchy-item:hover {
-  color: #ffffff;  /* 悬停时的颜色 */
-  background-color: #454545; /* 悬停时的背景颜色 */
+  color: #ffffff;
 }
 
-.hierarchy-item:active {
-  color: #003d80; /* 点击时的颜色 */
+.hierarchy-separator {
+  color: #666666;
+  margin: 0 8px;
 }
 
-span {
-  margin-right: 5px;
+.task-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background-color: #2b2b2b;
+  color: #e1e1e1;
+  border-bottom: 1px solid #444;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.task-header h2 {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 24px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #444;
+  transition: .4s;
+  border-radius: 24px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 2px;
+  bottom: 2px;
+  background-color: #fff;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked+.slider {
+  background-color: #2196F3;
+}
+
+input:checked+.slider:before {
+  transform: translateX(24px);
+}
+
+@media (prefers-color-scheme: dark) {
+  .back-button {
+    filter: invert(1);
+  }
+
+  .page-header {
+    background-color: #1e1e1e;
+    border-bottom: 1px solid #333;
+  }
+
+  .task-input input {
+    border: 1px solid #555;
+    background-color: #2e2e2e;
+    color: #e1e1e1;
+  }
+
+  .task-header {
+    background-color: #1e1e1e;
+    border-bottom: 1px solid #333;
+  }
+
+  .slider {
+    background-color: #555;
+  }
+
+  input:checked+.slider {
+    background-color: #2196F3;
+  }
 }
 </style>
