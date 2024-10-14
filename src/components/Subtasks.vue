@@ -21,6 +21,7 @@ let currentId = Number(route.params.taskId);;
 const currentTask = ref<Task | null>(null);
 const hierarchy = ref<{ text: string; id: number }[]>([]);
 const newSubtask = ref('');
+const inputRef = ref<HTMLInputElement | null>(null);
 
 const loadParentTasks = async () => {
   try {
@@ -69,6 +70,9 @@ const addSubtask = async () => {
       console.error('Failed to add subtask:', error);
     }
   }
+  if (inputRef.value) {
+    inputRef.value.blur();
+  }
 };
 
 const toggleSubtask = async (index: number) => {
@@ -112,7 +116,7 @@ onMounted(() => {
 
 <template>
   <div class="page-header">
-    <img @click="returnToMain" class="back-button" src="../assets/menu-button.png" alt="返回主界面" />
+    <img @click="returnToMain" class="back-button icon-button" src="../assets/menu-button.png" alt="返回主界面" />
     <div class="hierarchy">
       <span v-for="(item, index) in hierarchy" :key="item.id" class="hierarchy-item">
         <span @click="navigateToSubtasks(item.id)" class="clickable">
@@ -123,22 +127,22 @@ onMounted(() => {
     </div>
   </div>
 
-  <div class="task-container">
+  <form class="task-container" @submit.prevent="addSubtask">
     <div class="task-header">
-      <h2>{{ currentTask ? currentTask.text : '任务详情' }}</h2>
-      <label class="toggle-switch">
-        <input type="checkbox" @change="toggleOrdered" :checked="currentTask?.ordered" />
-        <span class="slider"></span>
-      </label>
-      <span>{{ currentTask?.ordered ? '有序' : '无序' }}</span>
+      <h3>{{ currentTask ? currentTask.text : '任务详情' }}</h3>
+      <div class="toggle-icons">
+        <img v-if="currentTask?.ordered" src="../assets/ordered_list.png" @click="toggleOrdered" alt="有序"
+          class="toggle-icon icon-button" />
+        <img v-else src="../assets/unordered_list.png" @click="toggleOrdered" alt="无序"
+          class="toggle-icon icon-button" />
+      </div>
     </div>
-    <TaskList v-if="currentTask" :tasks="currentTask.subtasks" :onToggleTask="toggleSubtask"
+    <TaskList v-if="currentTask" :tasks="currentTask.subtasks" :ordered="currentTask.ordered" :onToggleTask="toggleSubtask"
       :onNavigateToSubtasks="navigateToSubtasks" />
     <div class="task-input">
-      <input v-model="newSubtask" type="text" placeholder="添加新的子任务..." />
-      <button @click="addSubtask">添加子任务</button>
+      <input ref="inputRef" v-model="newSubtask" type="text" placeholder="添加新的子任务..." />
     </div>
-  </div>
+  </form>
 </template>
 
 <style scoped>
@@ -156,7 +160,7 @@ onMounted(() => {
   box-sizing: border-box;
 }
 
-.back-button {
+.icon-button {
   width: 28px;
   height: 28px;
   cursor: pointer;
@@ -166,7 +170,11 @@ onMounted(() => {
   filter: invert(0);
 }
 
-.back-button:hover {
+.toggle-icon {
+  opacity: 0.3;
+}
+
+.icon-button:hover {
   opacity: 0.9;
 }
 
@@ -206,58 +214,13 @@ onMounted(() => {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-.task-header h2 {
-  font-size: 20px;
+.task-header h3 {
+  font-size: 18px;
   font-weight: bold;
 }
 
-.toggle-switch {
-  position: relative;
-  display: inline-block;
-  width: 48px;
-  height: 24px;
-}
-
-.toggle-switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #444;
-  transition: .4s;
-  border-radius: 24px;
-}
-
-.slider:before {
-  position: absolute;
-  content: "";
-  height: 20px;
-  width: 20px;
-  left: 2px;
-  bottom: 2px;
-  background-color: #fff;
-  transition: .4s;
-  border-radius: 50%;
-}
-
-input:checked+.slider {
-  background-color: #2196F3;
-}
-
-input:checked+.slider:before {
-  transform: translateX(24px);
-}
-
 @media (prefers-color-scheme: dark) {
-  .back-button {
+  .icon-button {
     filter: invert(1);
   }
 
@@ -275,14 +238,6 @@ input:checked+.slider:before {
   .task-header {
     background-color: #1e1e1e;
     border-bottom: 1px solid #333;
-  }
-
-  .slider {
-    background-color: #555;
-  }
-
-  input:checked+.slider {
-    background-color: #2196F3;
   }
 }
 </style>

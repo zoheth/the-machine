@@ -3,6 +3,7 @@ import { ref } from 'vue';
 
 const props = defineProps<{
   tasks: { id: number; text: string; completed: boolean }[];
+  ordered: boolean;
   onToggleTask: (index: number) => void;
   onNavigateToSubtasks: (index: number) => void;
 }>();
@@ -80,7 +81,7 @@ function clearProgressInterval() {
 </script>
 
 <template>
-  <ul>
+  <component :is="ordered ? 'ol' : 'ul'">
     <li
       v-for="(task, index) in tasks"
       :key="index"
@@ -103,7 +104,8 @@ function clearProgressInterval() {
         </div>
       </div>
     </li>
-  </ul>
+    
+  </component>
 </template>
 
 <style scoped>

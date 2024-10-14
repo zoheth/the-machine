@@ -15,6 +15,7 @@ interface Task {
 const tasks = ref<Task[]>([]);
 const newTask = ref('');
 const router = useRouter();
+const inputRef = ref<HTMLInputElement | null>(null);
 
 const loadTasks = async () => {
   try {
@@ -43,6 +44,9 @@ const addTask = async () => {
     } catch (error) {
       console.error('Failed to add task:', error);
     }
+  }
+  if (inputRef.value) {
+    inputRef.value.blur();
   }
 };
 
@@ -75,11 +79,10 @@ onMounted(() => {
 <template>
   <form class="task-container" @submit.prevent="addTask">
     <div class="task-list">
-      <TaskList :tasks="tasks" :onToggleTask="toggleTask" :onNavigateToSubtasks="navigateToSubtasks" />
+      <TaskList :tasks="tasks" :onToggleTask="toggleTask" :ordered="false" :onNavigateToSubtasks="navigateToSubtasks" />
     </div>
     <div class="task-input">
-      <input v-model="newTask" type="text" placeholder="添加新的任务..." />
-      <button type="submit">添加任务</button>
+      <input ref="inputRef" v-model="newTask" type="text" placeholder="添加新的任务..." />
     </div>
   </form>
 </template>
