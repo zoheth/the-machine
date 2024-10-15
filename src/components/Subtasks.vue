@@ -1,8 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRouter } from 'vue-router';
 import { invoke } from '@tauri-apps/api/core';
 import TaskList from './TaskList.vue';
+
+const props = defineProps<{
+  taskId: number;
+}>();
 
 interface Task {
   id: number;
@@ -12,10 +16,9 @@ interface Task {
   subtasks: Task[];
 }
 
-const route = useRoute();
 const router = useRouter();
 
-let currentId = Number(route.params.taskId);;
+let currentId = props.taskId;
 
 
 const currentTask = ref<Task | null>(null);
@@ -55,16 +58,13 @@ const addSubtask = async () => {
         parentId: currentTask.value.id,
         text: newSubtask.value.trim(),
       });
-      currentTask.value.subtasks = [
-        ...currentTask.value.subtasks,
-        {
-          id: result,
-          text: newSubtask.value.trim(),
-          completed: false,
-          subtasks: [],
-          ordered: true,
-        },
-      ];
+      currentTask.value.subtasks.push({
+        id: result,
+        text: newSubtask.value.trim(),
+        completed: false,
+        ordered: true,
+        subtasks: [],
+      });
       newSubtask.value = '';
     } catch (error) {
       console.error('Failed to add subtask:', error);
@@ -137,8 +137,8 @@ onMounted(() => {
           class="toggle-icon icon-button" />
       </div>
     </div>
-    <TaskList v-if="currentTask" :tasks="currentTask.subtasks" :ordered="currentTask.ordered" :onToggleTask="toggleSubtask"
-      :onNavigateToSubtasks="navigateToSubtasks" />
+    <TaskList v-if="currentTask" :tasks="currentTask.subtasks" :parentId="currentTask.id" :ordered="currentTask.ordered"
+      :onToggleTask="toggleSubtask" :onNavigateToSubtasks="navigateToSubtasks" />
     <div class="task-input">
       <input ref="inputRef" v-model="newSubtask" type="text" placeholder="添加新的子任务..." />
     </div>

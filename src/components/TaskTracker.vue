@@ -19,14 +19,16 @@ const inputRef = ref<HTMLInputElement | null>(null);
 
 const loadTasks = async () => {
   try {
-    const result = await invoke<Task[]>('get_active_tasks'); // 调用后端的 get_active_tasks 命令
-    tasks.value = result; // 将结果绑定到 tasks 列表
+    const result = await invoke<Task[]>('get_active_tasks');
+    console.log('Tasks received from backend:', result);
+    tasks.value = result;
   } catch (error) {
     console.error('Failed to load tasks:', error);
   }
 };
 
 const addTask = async () => {
+  console.log('Adding task:', newTask.value);
   if (newTask.value.trim() !== '') {
     try {
       const result = await invoke<number>('add_task', {
@@ -34,7 +36,7 @@ const addTask = async () => {
         ordered: false,
       });
       tasks.value.push({
-        id: result, // Rust 返回的任务 ID
+        id: result,
         text: newTask.value.trim(),
         completed: false,
         subtasks: [],
