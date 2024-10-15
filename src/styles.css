@@ -89,3 +89,73 @@ button:active {
   border-radius: 4px;
   transition: background-color 0.3s ease;
 }
+
+.mx-context-menu.my-theme { 
+  --mx-menu-background: #2a2a2a; /* 简单的深色背景 */
+  --mx-menu-hover-background: #3a7ca5; /* 鼠标悬停时的颜色 */
+  --mx-menu-shadow-color: rgba(0, 0, 0, 0.3); /* 较柔和的阴影 */
+  --mx-menu-border-color: rgba(255, 255, 255, 0.08); /* 边框更柔和 */
+
+  /* 菜单外部样式 */
+  padding: 4px 0; /* 减少内边距 */
+  box-shadow: 0px 3px 8px var(--mx-menu-shadow-color); /* 较轻的阴影 */
+  border: 1px solid var(--mx-menu-border-color);
+  border-radius: 6px; /* 更小的圆角 */
+  background: var(--mx-menu-background);
+}
+
+.mx-context-menu.my-theme .mx-context-menu-item {
+  text-align: left;
+  border-radius: 3px; /* 更小的圆角 */
+  margin: 2px 8px; /* 减少外边距 */
+  padding: 6px 12px; /* 减少内边距 */
+  color: #d0d6e2; /* 保持文本颜色 */
+  background-color: transparent; /* 透明背景 */
+  transition: background-color 0.2s ease, color 0.2s ease; /* 略快的过渡 */
+  cursor: pointer;
+}
+
+.mx-context-menu.my-theme .mx-context-menu-item:hover {
+  background-color: var(--mx-menu-hover-background); /* 悬停时的背景色 */
+  color: #fff; /* 悬停时的文本颜色 */
+}
+
+.mx-context-menu.my-theme .mx-context-menu-item:active {
+  transform: scale(0.97); /* 点击时缩小一点 */
+  transition: transform 0.1s ease; /* 点击时的动画 */
+}
+
+.mx-menu-bar.my-theme {
+  /* 自定义菜单栏样式 */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px; /* 缩小内边距 */
+  background-color: #1e1e1e; /* 深色背景 */
+  border-radius: 4px; /* 更小的圆角 */
+  border: 1px solid var(--mx-menu-border-color);
+  box-shadow: 0px 2px 5px var(--mx-menu-shadow-color); /* 较轻的阴影 */
+}
+
+.mx-menu-bar.my-theme button {
+  padding: 6px 12px; /* 缩小按钮的内边距 */
+  background-color: #3a7ca5; /* 按钮背景色 */
+  color: #fff; /* 按钮文本颜色 */
+  border: none;
+  border-radius: 3px; /* 按钮圆角 */
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mx-menu-bar.my-theme button:hover {
+  background-color: #5c9ecb; /* 鼠标悬停时按钮颜色 */
+  box-shadow: 0px 2px 5px rgba(0, 100, 160, 0.3); /* 更柔和的悬停阴影 */
+}
+
+.mx-menu-bar.my-theme button:focus {
+  outline: none;
+  box-shadow: 0px 0px 8px 2px #5c9ecb; /* 聚焦时的阴影 */
+}
+
+.mx-menu-bar.my-theme button:active {
+  transform: scale(0.98); /* 点击时缩小 */
+}

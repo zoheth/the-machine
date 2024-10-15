@@ -314,20 +314,17 @@ impl TaskManager {
             task_lock.subtasks.clone()
         };
 
-        let mut delete_count = 1; // 删除当前任务
+        let mut delete_count = 1;
 
-        // 递归删除子任务
         for subtask_id in subtasks {
             delete_count += self.remove_task_recursive(subtask_id)?;
         }
 
-        // 删除当前任务
         {
             let mut tasks = self.tasks.lock().unwrap();
             tasks.remove(&task_id);
         }
 
-        // 从根任务中移除（如果是根任务）
         {
             let mut root_tasks = self.root_tasks.lock().unwrap();
             if let Some(pos) = root_tasks.iter().position(|&id| id == task_id) {
@@ -336,6 +333,46 @@ impl TaskManager {
         }
 
         Ok(delete_count)
+    }
+
+    pub fn get_subtasks_recursive(&self, id: usize, max_count: usize) -> Result<Vec<Task>, String> {
+        let task = {
+            let tasks = self.tasks.lock().unwrap();
+            tasks
+                .get(&id)
+                .ok_or(format!("Task with id: {} not found", id))?
+                .clone()
+        };
+
+        let subtasks_ids = {
+            let task_lock = task.lock().unwrap();
+            task_lock.subtasks.clone()
+        };
+
+        let tasks_map = {
+            let tasks = self.tasks.lock().unwrap();
+            tasks.clone()
+        };
+
+        let mut subtasks: Vec<Task> = Vec::new();
+        let mut subtasks_to_process = subtasks_ids;
+        let mut processed_count = 0;
+
+        while let Some(subtask_id) = subtasks_to_process.pop() {
+            if let Some(subtask) = tasks_map.get(&subtask_id) {
+                subtasks.push(subtask.lock().unwrap().clone());
+                processed_count += 1;
+
+                if processed_count >= max_count {
+                    break;
+                }
+
+                let subtask_lock = subtask.lock().unwrap();
+                subtasks_to_process.extend(subtask_lock.subtasks.iter().cloned());
+            }
+        }
+
+        Ok(subtasks)
     }
 
     pub fn get_subtasks(&self, id: usize) -> Result<Vec<Task>, String> {

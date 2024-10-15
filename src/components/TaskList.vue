@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, nextTick } from 'vue';
 import draggable from 'vuedraggable';
 import { invoke } from '@tauri-apps/api/core';
-import ContextMenu from './ContextMenu.vue';
+import ContextMenu from '@imengyu/vue3-context-menu'
 
 const props = defineProps<{
   tasks: { id: number; text: string; completed: boolean }[];
@@ -12,14 +12,19 @@ const props = defineProps<{
   onNavigateToSubtasks: (index: number) => void;
 }>();
 
+interface Task {
+  id: number;
+  text: string;
+  completed: boolean;
+  ordered: boolean;
+  subtasks: Task[];
+}
+
 const activeTaskIndex = ref<number | null>(null);
 const pressProgress = ref(0);
 const isShowingProgress = ref(false);
 const editingIndex = ref<number | null>(null);
 const newText = ref<string>('');
-let singleClickTimer: ReturnType<typeof setTimeout> | null = null;
-
-const selectedTaskIndex = ref<number | null>(null);
 
 const longPressState = ref({
   timeout: null as ReturnType<typeof setTimeout> | null,
@@ -27,6 +32,7 @@ const longPressState = ref({
 });
 
 function startLongPress(index: number) {
+  if (editingIndex.value !== null) return;  // Prevent long press during editing
   activeTaskIndex.value = index;
   const task = props.tasks[index];
   pressProgress.value = task.completed ? 100 : 0;
@@ -88,14 +94,6 @@ function clearProgressInterval() {
   }
 }
 
-function handleSingleClick(index: number) {
-  if (singleClickTimer) clearTimeout(singleClickTimer);
-  singleClickTimer = setTimeout(() => {
-    editingIndex.value = index;
-    newText.value = props.tasks[index].text;
-  }, 250);
-}
-
 function submitEdit(index: number) {
   const task = props.tasks[index];
   if (newText.value.trim() !== '') {
@@ -105,68 +103,99 @@ function submitEdit(index: number) {
         task.text = newText.value.trim();
       })
       .catch(err => console.error('Failed to update task:', err));
+  } else {
+    editingIndex.value = null;
   }
 }
 
-function handleRightClick(index: number, event: MouseEvent) {
-  event.preventDefault();
-  selectedTaskIndex.value = index;
+function handleEditBlur(index: number) {
+  submitEdit(index);
 }
 
-const contextMenuItems = ref([
-  { label: '删除任务', action: confirmDeleteTask }
-]);
-
-function confirmDeleteTask() {
-  if (selectedTaskIndex.value !== null) {
-    const task = props.tasks[selectedTaskIndex.value];
-
-    invoke<number>('remove_task', { id: task.id })
-      .then((deletedTaskCount) => {
-        if (confirm(`将要删除 ${deletedTaskCount} 个任务，是否确认？`)) {
-          props.tasks.splice(selectedTaskIndex.value!, 1);
+const onContextMenu = (index: number, e: any) => {
+  e.preventDefault();
+  ContextMenu.showContextMenu({
+    theme: 'my-theme',
+    x: e.x,
+    y: e.y,
+    items: [
+      {
+        label: "编辑",
+        onClick: () => {
+          editingIndex.value = index;
+          newText.value = props.tasks[index].text;
+          nextTick(() => {
+            const input = document.querySelector<HTMLInputElement>('input.editing');
+            if (input) {
+              input.focus();
+              input.select();
+            }
+          });
         }
-      })
-      .catch((err) => console.error('Failed to remove task:', err));
-  }
+      },
+      {
+        label: "删除",
+        onClick: () => {
+          setTimeout(() => {
+            confirmDeleteTask(index);  // 延迟执行删除操作
+          }, 100); 
+        }
+      },
+    ]
+  });
+};
+
+function confirmDeleteTask(index: number) {
+  ContextMenu.closeContextMenu();
+  const task = props.tasks[index];
+
+  invoke<Task[]>('get_subtasks', { id: task.id })
+    .then((subtasks) => {
+      let message = `将要删除任务: "${task.text}"`;
+
+      if (subtasks.length > 0) {
+        message += `，并且包含以下子任务:\n`;
+        subtasks.forEach(subtask => {
+          message += `- ${subtask.text}\n`;
+        });
+      }
+
+      message += '是否确认删除？';
+
+      if (confirm(message)) {
+        invoke<number>('remove_task', { id: task.id })
+          .then(() => {
+            props.tasks.splice(index, 1);
+          })
+          .catch((err) => console.error('Failed to remove task:', err));
+      }
+    })
+    .catch((err) => console.error('Failed to get subtasks:', err));
 }
 
-const tasksRef = ref([...props.tasks]); // 本地的可变 tasks
-
-// 监听 props.tasks 的变化
-watch(
-  () => props.tasks,
-  (newTasks) => {
-    tasksRef.value = [...newTasks];
-  },
-  { immediate: true } // 立即执行一次以确保同步
-);
-
-function onReorder(event: any) {
-  const newOrder = tasksRef.value.map(task => task.id);
+function onReorder(_event: any) {
+  if (editingIndex.value !== null) return;  // Prevent reordering during editing
+  const newOrder = props.tasks.map(task => task.id);
   console.log('New order:', newOrder);
   if (props.parentId !== undefined) {
     invoke('reorder_subtasks', { parentId: props.parentId, newOrder: newOrder })
       .catch(err => console.error('Failed to reorder tasks:', err));
   }
 }
+
 </script>
 
 <template>
   <component :is="ordered ? 'ol' : 'ul'">
-    <draggable v-model="tasksRef" @end="onReorder" :disabled="props.parentId === undefined" item-key="task.id"
-      :animation="200">
+    <draggable :list="props.tasks" @end="onReorder" item-key="" ghost-class="ghost" :force-fallback="true"
+      chosen-class="chosenClass" animation="300">
       <template #item="{ element: task, index }">
-        <li :key="index" :class="{ completed: task.completed }" :draggable="props.parentId !== undefined">
+        <li :key="index" :class="{ completed: task.completed }">
+            <input  v-if="editingIndex === index" type="text" v-model="newText" @blur="handleEditBlur(index)" @keyup.enter="submitEdit(index)" class="editing" />
 
-          <div class="task-item" v-if="editingIndex === 99999999999">
-            <input v-model="newText" @blur="submitEdit(index)" @keyup.enter="submitEdit(index)" />
-          </div>
-
-          <div class="task-item" v-else @mousedown="startLongPress(index)" @touchstart="startLongPress(index)"
-            @mouseup="cancelLongPress" @mouseleave="cancelLongPress" @touchend="cancelLongPress"
-            @dblclick="handleDoubleClick(task.id)" @contextmenu="handleRightClick(index, $event)"
-            @click="handleSingleClick(index)">
+          <div v-else class="task-item" @contextmenu="onContextMenu(index, $event)" @mousedown="startLongPress(index)"
+            @touchstart="startLongPress(index)" @mouseup="cancelLongPress" @mouseleave="cancelLongPress"
+            @touchend="cancelLongPress" @dblclick="handleDoubleClick(task.id)" >
             <span>{{ task.text }}</span>
             <span v-if="task.completed" class="status">已完成</span>
 
@@ -174,12 +203,10 @@ function onReorder(event: any) {
               <div class="progress" :style="{ width: pressProgress + '%' }"></div>
             </div>
           </div>
-
-          <ContextMenu :menuItems="contextMenuItems" />
         </li>
+
       </template>
     </draggable>
-
   </component>
 </template>
 
@@ -197,7 +224,23 @@ function onReorder(event: any) {
   cursor: pointer;
   transition: background-color 0.3s ease;
   color: #f9f9f9;
+}
+
+.editing {
+  box-sizing: border-box;
+  width: 100%;
+  display: flex;
   position: relative;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 4px;
+  background-color: #444;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  color: #f9f9f9;
 }
 
 .task-item:hover {
@@ -230,28 +273,5 @@ function onReorder(event: any) {
   height: 100%;
   background-color: #3a7ca5;
   transition: width 0.1s linear;
-}
-
-.context-menu {
-  position: absolute;
-  background-color: white;
-  border: 1px solid #ccc;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-  z-index: 1000;
-}
-
-.context-menu ul {
-  list-style-type: none;
-  margin: 0;
-  padding: 0;
-}
-
-.context-menu ul li {
-  padding: 10px;
-  cursor: pointer;
-}
-
-.context-menu ul li:hover {
-  background-color: #f0f0f0;
 }
 </style>
