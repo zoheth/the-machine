@@ -219,25 +219,23 @@ onMounted(() => {
   font-weight: bold;
 }
 
-@media (prefers-color-scheme: dark) {
-  .icon-button {
-    filter: invert(1);
-  }
+.icon-button {
+  filter: invert(1);
+}
 
-  .page-header {
-    background-color: #1e1e1e;
-    border-bottom: 1px solid #333;
-  }
+.page-header {
+  background-color: #1e1e1e;
+  border-bottom: 1px solid #333;
+}
 
-  .task-input input {
-    border: 1px solid #555;
-    background-color: #2e2e2e;
-    color: #e1e1e1;
-  }
+.task-input input {
+  border: 1px solid #555;
+  background-color: #2e2e2e;
+  color: #e1e1e1;
+}
 
-  .task-header {
-    background-color: #1e1e1e;
-    border-bottom: 1px solid #333;
-  }
+.task-header {
+  background-color: #1e1e1e;
+  border-bottom: 1px solid #333;
 }
 </style>
