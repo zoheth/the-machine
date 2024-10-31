@@ -12,8 +12,8 @@ pub struct Task {
     text: String,
     completed: bool,
     ordered: bool,
-    subtasks: Vec<usize>,  // IDs of subtasks
-    parent: Option<usize>, // ID of the parent task
+    subtasks: Vec<usize>,
+    parent: Option<usize>,
 }
 
 impl Task {
@@ -33,7 +33,7 @@ impl Task {
 struct TaskManagerData {
     tasks: Vec<Task>,
     root_tasks: Vec<usize>,
-    next_id: usize, // 添加 next_id 字段
+    next_id: usize,
 }
 
 pub struct TaskManager {
@@ -128,7 +128,6 @@ impl TaskManager {
         let id = self.generate_id();
         let subtask = Arc::new(Mutex::new(Task::new(id, text.clone(), true)));
 
-        // Acquire the parent task without holding the lock on self.tasks
         let parent_task = {
             let tasks = self.tasks.lock().unwrap();
             tasks
@@ -147,7 +146,6 @@ impl TaskManager {
             parent_task_lock.subtasks.push(id);
         }
 
-        // Insert the subtask into the task map
         {
             let mut tasks = self.tasks.lock().unwrap();
             tasks.insert(id, subtask);
@@ -235,7 +233,6 @@ impl TaskManager {
                 .collect::<HashMap<usize, Task>>()
         };
 
-        // 获取根任务的ID列表
         let root_task_ids = {
             let root_tasks = self.root_tasks.lock().unwrap();
             root_tasks.clone()
@@ -243,7 +240,6 @@ impl TaskManager {
 
         let mut active_tasks = Vec::new();
 
-        // 从根任务开始遍历
         for root_task_id in root_task_ids {
             if let Some(root_task) = tasks_map.get(&root_task_id) {
                 self.collect_active_tasks(root_task, &tasks_map, &mut active_tasks);
@@ -264,7 +260,6 @@ impl TaskManager {
         }
 
         if task.subtasks.is_empty() {
-            // 没有子任务，任务为活跃任务
             active_tasks.push(task.clone());
             return;
         }
@@ -272,7 +267,6 @@ impl TaskManager {
         let mut all_subtasks_completed = true;
 
         if task.ordered {
-            // 有序任务，只考虑第一个未完成的子任务
             for &subtask_id in &task.subtasks {
                 if let Some(subtask) = tasks_map.get(&subtask_id) {
                     if !subtask.completed {
@@ -283,7 +277,6 @@ impl TaskManager {
                 }
             }
         } else {
-            // 无序任务，遍历所有未完成的子任务
             for &subtask_id in &task.subtasks {
                 if let Some(subtask) = tasks_map.get(&subtask_id) {
                     if !subtask.completed {
@@ -294,7 +287,6 @@ impl TaskManager {
             }
         }
 
-        // 如果所有子任务都已完成，当前任务为活跃任务
         if all_subtasks_completed {
             active_tasks.push(task.clone());
         }

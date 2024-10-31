@@ -33,7 +33,7 @@ const addTask = async () => {
     try {
       const result = await invoke<number>('add_task', {
         text: newTask.value.trim(),
-        ordered: false,
+        ordered: true,
       });
       tasks.value.push({
         id: result,
