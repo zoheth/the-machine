@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { invoke } from '@tauri-apps/api/core';
 import TaskList from './TaskList.vue';
+import TaskComments from './TaskComments.vue';
 
 const props = defineProps<{
   taskId: number;
@@ -119,30 +120,38 @@ onMounted(() => {
     <img @click="returnToMain" class="back-button icon-button" src="../assets/menu-button.png" alt="返回主界面" />
     <div class="hierarchy">
       <span v-for="(item, index) in hierarchy" :key="item.id" class="hierarchy-item">
-        <span @click="navigateToSubtasks(item.id)" class="clickable">
+        <span v-if="index > 0" class="hierarchy-separator">&gt;</span>
+        <span
+          @click="navigateToSubtasks(item.id)"
+          class="clickable hierarchy-text"
+          :title="item.text"
+        >
           {{ item.text }}
         </span>
-        <span v-if="index < hierarchy.length - 1" class="hierarchy-separator"> &gt; </span>
       </span>
     </div>
   </div>
-
-  <form class="task-container" @submit.prevent="addSubtask">
-    <div class="task-header">
-      <h3>{{ currentTask ? currentTask.text : '任务详情' }}</h3>
-      <div class="toggle-icons">
-        <img v-if="currentTask?.ordered" src="../assets/ordered_list.png" @click="toggleOrdered" alt="有序"
-          class="toggle-icon icon-button" />
-        <img v-else src="../assets/unordered_list.png" @click="toggleOrdered" alt="无序"
-          class="toggle-icon icon-button" />
+  <div class="main-container">
+    <form class="task-container" @submit.prevent="addSubtask">
+      <div class="task-header">
+        <h3>{{ currentTask ? currentTask.text : '任务详情' }}</h3>
+        <div class="toggle-icons">
+          <img v-if="currentTask?.ordered" src="../assets/ordered_list.png" @click="toggleOrdered" alt="有序"
+            class="toggle-icon icon-button" />
+          <img v-else src="../assets/unordered_list.png" @click="toggleOrdered" alt="无序"
+            class="toggle-icon icon-button" />
+        </div>
       </div>
-    </div>
-    <TaskList v-if="currentTask" :tasks="currentTask.subtasks" :parentId="currentTask.id" :ordered="currentTask.ordered"
-      :onToggleTask="toggleSubtask" :onNavigateToSubtasks="navigateToSubtasks" />
-    <div class="task-input">
-      <input ref="inputRef" v-model="newSubtask" type="text" placeholder="添加新的子任务..." />
-    </div>
-  </form>
+      <TaskList v-if="currentTask" :tasks="currentTask.subtasks" :parentId="currentTask.id" :ordered="currentTask.ordered"
+        :onToggleTask="toggleSubtask" :onNavigateToSubtasks="navigateToSubtasks" />
+      <div class="task-input">
+        <input ref="inputRef" v-model="newSubtask" type="text" placeholder="添加新的子任务..." />
+      </div>
+    </form>
+
+    <TaskComments :taskId="currentId" />
+  </div>
+  
 </template>
 
 <style scoped>
@@ -183,13 +192,24 @@ onMounted(() => {
   align-items: center;
   color: #e1e1e1;
   font-size: 14px;
+  flex-wrap: wrap; /* Allows the hierarchy to wrap to the next line */
+  line-height: 1.8; /* Adds spacing between lines when the hierarchy wraps */
 }
 
 .hierarchy-item {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   cursor: pointer;
   transition: color 0.3s ease;
+  margin-right: 8px; /* Adds space between the item text and the separator */
+}
+
+.hierarchy-text {
+  display: inline-block;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .hierarchy-item:hover {
@@ -198,7 +218,16 @@ onMounted(() => {
 
 .hierarchy-separator {
   color: #666666;
-  margin: 0 8px;
+  margin-right: 8px;
+}
+
+.main-container {
+  display: flex;
+  width: 100%;
+  flex-direction: column; /* Stack elements vertically */
+  gap: 16px; /* Optional: adds spacing between sections */
+  padding: 16px;
+  box-sizing: border-box;
 }
 
 .task-header {
